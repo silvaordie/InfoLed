@@ -4,8 +4,11 @@
 #define TEMPO_MAX 5000 // tempo de maximo de gravação 
 #define THRESHOLD 10
 #define SENSOR A0
+#define MARGEM 10
 
 int grava_vetor[SIZE]; //  Vetor com a combinação sonora
+bool combinacao;
+
 
 int com=0;
 void setup() 
