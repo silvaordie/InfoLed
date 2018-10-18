@@ -2,7 +2,7 @@
 #define SIZE 500 //tamanho da memoria estática (número de amostras)
 #define DELAY_A 10 //tempo entre cada bloco do vetor (tempo de amostragem em ms)
 #define TEMPO_MAX 5000 // tempo de maximo de gravação 
-#define THRESHOLD 5
+#define THRESHOLD 10
 #define SENSOR A0
 
 int grava_vetor[SIZE]; //  Vetor com a combinação sonora
@@ -53,9 +53,11 @@ void playback()
 void ouve()
 {      
       while( !digitalRead(BOTAO) ); //verifica se o botao ja foi largado ou não
-      
-      Serial.println("Botao");
-      
+      Serial.println("Botao");   
+         
+      while( analogRead(SENSOR) < THRESHOLD ); //comaça ao primeiro barulho
+      Serial.println("teste");  
+            
       for(int i=0 ; i<SIZE && digitalRead(BOTAO) ; i++)
       {
          if( analogRead(SENSOR) > THRESHOLD )
