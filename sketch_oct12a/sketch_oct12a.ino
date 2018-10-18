@@ -1,33 +1,32 @@
-#define in 10
-#define SIZE 500 //tamanho da memoria estática
-#define tempo_bloco 10 //tempo entre cada bloco do vetor (em ms)
-#define full_time 5000 // tempo de gravação
-int[SIZE] grava_vetor;
-int i=0;
+#define BOTAO 10 // Porta do sensor
+#define SIZE 500 //tamanho da memoria estática (número de amostras)
+#define DELAY_A 10 //tempo entre cada bloco do vetor (tempo de amostragem em ms)
+#define TEMPO_MAX 5000 // tempo de maximo de gravação 
+#define THRESHOLD 5
+#define SENSOR A0
 
-void setup() {
- Serial.begin(9600);
- pinMode(13,OUTPUT);
- pinMode(in, INPUT);
- pinMode(2,OUTPUT);
+int grava_vetor[SIZE]; //  Vetor com a combinação sonora
 
-
-}
-
-void loop() {
-
- //Serial.println(analogRead(A0)); saida do buzzer
-
- if(!digitalRead(in)) //salta para a funçao quando tiver a 0, poque ta em pull up
+int com=0;
+void setup() 
 {
-  ouve();
+     Serial.begin(9600);
+     pinMode(BOTAO, INPUT);
 }
- if(analogRead(A0)>1)
- {
-   digitalWrite(13, HIGH);
-   delay(100);
-   digitalWrite(13, LOW);
- }
+
+void loop() 
+{
+  
+    //Serial.println(analogRead(A0)); saida do buzzer
+    if(!digitalRead(BOTAO)) //Se o bOtão for premido
+    {
+        ouve();
+    }
+
+    if(!digitalRead(7))
+      playback();
+
+
 
  /*if(analogRead(A0)>4)
  {
@@ -37,23 +36,37 @@ void loop() {
  }*/
 }
 
-void ouve()
+void playback()
 {
-while(!digitalRead(in)) //verifica se o butao ja foi largado ou não
-Serial.println("Botao");
-
-for(i=0;i<SIZE;i++)
-{
- if(analogRead(A0)>0);
- grava_vetor[i]=1;
- else;
- grava_vetor[i]=0;
- delay(tempo_bloco);
+  
+  for(int j=0; j<SIZE; j++)
+  {
+    if(grava_vetor[j] == 1)
+      digitalWrite(12, HIGH);
+      
+    delay(DELAY_A);
+    digitalWrite(12, LOW);   
+  }
 
 }
 
- Serial.println(grava_vetor[]);
-
-
-
+void ouve()
+{      
+      while( !digitalRead(BOTAO) ); //verifica se o botao ja foi largado ou não
+      
+      Serial.println("Botao");
+      
+      for(int i=0 ; i<SIZE && digitalRead(BOTAO) ; i++)
+      {
+         if( analogRead(SENSOR) > THRESHOLD )
+             grava_vetor[i]=1;
+         else
+            grava_vetor[i]=0;
+         delay(DELAY_A);
+      }
+      int j=0;
+      
+      for(int j=0; j<SIZE; j++)
+       Serial.print(grava_vetor[j]);
+       
 }
