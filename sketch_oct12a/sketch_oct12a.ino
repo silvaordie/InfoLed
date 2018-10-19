@@ -7,6 +7,7 @@
 #define MARGEM 10
 
 int grava_vetor[SIZE]; //  Vetor com a combinação sonora
+int tres[SIZE];
 bool combinacao;
 
 
@@ -60,18 +61,46 @@ void ouve()
          
       while( analogRead(SENSOR) < THRESHOLD ); //comaça ao primeiro barulho
       Serial.println("teste");  
-            
+      
+      int threshold=THRESHOLD;
+      int zero; int save;      
+      
       for(int i=0 ; i<SIZE && digitalRead(BOTAO) ; i++)
       {
+          if(analogRead(SENSOR)>threshold)
+          {
+            grava_vetor[i]=1;
+            save= analogRead(SENSOR);
+            zero=i;
+          }
+          else
+          {
+            grava_vetor[i]=0;
+            }
+          threshold = g(zero, save, i);
+          tres[i]=threshold;
+                   delay(DELAY_A);
+        /*
          if( analogRead(SENSOR) > THRESHOLD )
              grava_vetor[i]=1;
          else
             grava_vetor[i]=0;
-         delay(DELAY_A);
+         delay(DELAY_A);*/
       }
       int j=0;
       
       for(int j=0; j<SIZE; j++)
        Serial.print(grava_vetor[j]);
        
+}
+
+
+int g(int zero, int thresh, int atual)
+{
+  int coord = atual-zero;
+
+  if(coord <=5 )
+    return THRESHOLD + thresh;
+  else;  
+    return THRESHOLD + thresh/(1*coord);
 }
