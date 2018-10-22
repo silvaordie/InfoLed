@@ -1,8 +1,10 @@
-#define THRESHOLD 10
-#define DIF_MAX 3000
+#define THRESHOLD 5
+#define DIF_MAX 1000
 #define MAX_TOQUES 10
 #define SENSOR A0
 #define ERRO_MAX 40
+#define BOTAO_G 10
+#define DELAY 350
 
 int sensorValue;
 unsigned long temp_time;
@@ -10,6 +12,7 @@ unsigned long diff=0;
 int num=0;
 
 boolean learned = false;
+boolean rec=false;
 boolean printed_mem = false;
 boolean printed_cur = false;
 boolean stored_cur = false;
@@ -28,7 +31,8 @@ int save;
 void setup() {
   Serial.begin(9600);
   Serial.println(".....");
-
+  pinMode(SENSOR, INPUT);
+  pinMode(BOTAO_G, INPUT);
   threshold=THRESHOLD;
   Serial.println("Setup complete");
 } 
@@ -36,11 +40,16 @@ void setup() {
 void loop()
 {
     sensorValue = analogRead(SENSOR);
-        threshold=g(zero, save, millis() );
+    threshold=g(zero, save, millis() );
 
+    if(!digitalRead(BOTAO_G))
+      rec=true;
+
+    
     if(millis()-temp_time > DIF_MAX && mem[0] != 0 && !learned) 
     { //at least one knock was done
       learned = true;
+      rec=false;
       Serial.println("**********************");
     }
 
@@ -53,7 +62,7 @@ void loop()
       Serial.println("ready to be unlocked");
     }
 
-    if(checkSize())
+    if(stored_cur && millis()-zero > DIF_MAX)
     {
       Serial.println("Printing cur:");
       printArray(cur);
@@ -71,94 +80,61 @@ void loop()
       Serial.println("ready to be unlocked");
     }
 
-    if(sensorValue > threshold) 
+    if(sensorValue > threshold && (learned || rec)) 
     { //if a knock occurred
 
       //Ajuste do threshold
       save = sensorValue;
       zero= millis();
-      threshold=g(zero, save, millis() );
-      
-      diff = millis() - temp_time; //time since last knock
+
       if(prenum > 0) 
       {
+        diff = millis() - temp_time; //time since last knock
         if(!learned) 
         { //don't save first time of knock sequence
-            for(int i=0; i<MAX_TOQUES; i++)
-          { //loop through mem
-            if(mem[i] == 0) 
-            { //if nothing is stored there
-              mem[i] = diff; ///fix this for first time through???
-              Serial.println(diff);
-              if(i == MAX_TOQUES-1) 
-              {
-                learned = true;
-                Serial.println("**********************");
-              }
-              break;
-            }
-          }
+          learn();
         }
-  
         //record cur
         if(learned && diff < DIF_MAX) 
         { //don't save first time of knock sequence
-          for(int i=0; i<MAX_TOQUES; i++) 
-  { //loop through
-    if(cur[i] == 0) 
-    { //if nothing is stored there
-      cur[i] = diff; ///fix this for first time through???
-       Serial.println(diff);
-                   
-      if(i == MAX_TOQUES-1) 
-        stored_cur = true;
-                   
-      break;
-    }  
-  }
+          record_curr();
         }
         temp_time = millis();
-        delay(150);
+        delay(DELAY);
       }
       else 
       {
         prenum++;
         temp_time = millis();
-        delay(150);
+        delay(DELAY);
       }
   } 
 }
 
 void record_curr()
 {
-  for(int i=0; i<MAX_TOQUES; i++) 
-  { //loop through
-    if(cur[i] == 0) 
-    { //if nothing is stored there
-      cur[i] = diff; ///fix this for first time through???
-       Serial.println(diff);
-                   
-      if(i == MAX_TOQUES-1) 
-        stored_cur = true;
-                   
-      break;
-    }  
-  }
+          for(int i=0; i<MAX_TOQUES; i++) 
+          { //loop through
+            if(cur[i] == 0) 
+            { //if nothing is stored there
+              cur[i] = diff; ///fix this for first time through???
+               Serial.println(diff);
+                           
+                stored_cur = true;
+                           
+              break;
+            }  
+          }
 }
 
 void learn()
 {
-            for(int i=0; i<MAX_TOQUES; i++)
+          for(int i=0; i<MAX_TOQUES; i++)
           { //loop through mem
             if(mem[i] == 0) 
             { //if nothing is stored there
               mem[i] = diff; ///fix this for first time through???
               Serial.println(diff);
-              if(i == MAX_TOQUES-1) 
-              {
-                learned = true;
-                Serial.println("**********************");
-              }
               break;
             }
           }
@@ -236,10 +212,10 @@ int g(int zero, int thresh, int atual)
 {
   int coord = atual-zero;
 
-  if(coord <=50 )
+  if(coord <=DELAY)
   {
       return THRESHOLD + thresh;  
   }
   else  
-    return THRESHOLD + thresh/(3*coord+150 );
+    return THRESHOLD + thresh/(0.1*coord+DELAY );
 }
