@@ -3,12 +3,28 @@
 #define MAX_TOQUES 10
 #define SENSOR A0
 #define ERRO_MAX 40
-#define BOTAO_G 10
+#define BOTAO_G 7
+#define BOTAO_R 10
 #define DELAY 350
+
+#define LED_10 9
+#define LED_11 8
+#define LED_20 12
+#define LED_21 11
+#define LED_31 13
+
+#define LED_ON 200
+#define LED_OFF 3000
+
+int LED1[3]={ 8, 11, 13};
+int LED0[3]={ 9, 12, 4};
 
 int sensorValue;
 unsigned long temp_time;
 unsigned long diff=0;
+unsigned long led_timer_1=0;
+unsigned long led_timer_2=0;
+bool on=false;
 int num=0;
 
 boolean learned = false;
@@ -19,8 +35,11 @@ boolean stored_cur = false;
 boolean first_cur = false;
 int prenum = 0;
 
-int mem[] = {0,0,0,0,0,0,0,0,0,0}; //lock sequence
+int mems=0;
+int mem[5][MAX_TOQUES] = {0}; //lock sequence
 int cur[] = {0,0,0,0,0,0,0,0,0,0}; //current sequence
+bool nots[5]={false};
+
 
 long time;
 int threshold;
@@ -33,51 +52,65 @@ void setup() {
   Serial.println(".....");
   pinMode(SENSOR, INPUT);
   pinMode(BOTAO_G, INPUT);
+  pinMode(LED_10, OUTPUT);
+    pinMode(LED_11, OUTPUT);
+      pinMode(LED_20, OUTPUT);
+        pinMode(LED_21, OUTPUT);
+          pinMode(LED_31, OUTPUT);
+  digitalWrite(LED_10, LOW);
+  digitalWrite(LED_11, LOW);
+  digitalWrite(LED_20, LOW);
+  digitalWrite(LED_21, LOW);
+  digitalWrite(LED_31, LOW);
+  
+  
   threshold=THRESHOLD;
-  Serial.println("Setup complete");
+  Serial.println("Setup completo");
 } 
  
 void loop()
 {
     sensorValue = analogRead(SENSOR);
+    update_leds();
     threshold=g(zero, save, millis() );
+  
+    
 
     if(!digitalRead(BOTAO_G))
+    {
       rec=true;
+      learned=false;  
+      prenum=0;    
+    }
 
-    
-    if(millis()-temp_time > DIF_MAX && mem[0] != 0 && !learned) 
+    if(!digitalRead(BOTAO_R))
+    {
+        for(int i=0; i<mems; i++)
+          nots[i]=false; 
+    }
+
+    if(millis()-temp_time > DIF_MAX && mem[mems][0] != 0 && !learned) 
     { //at least one knock was done
       learned = true;
+      mems++;
       rec=false;
-      Serial.println("**********************");
+      Serial.print("Combinação ");
+      Serial.print(mems);
+      Serial.println(" guardada");
+      
     }
-
-    if(learned && !printed_mem)
-    {
-      Serial.println("Printing mem");
-      printArray(mem);
-      printed_mem = true;
-      Serial.println("Unlock pattern recorded. Please wait...");
-      Serial.println("ready to be unlocked");
-    }
-
     if(stored_cur && millis()-zero > DIF_MAX)
     {
-      Serial.println("Printing cur:");
-      printArray(cur);
-      printed_cur = true;
       checkValid();
       
       for(int i=0; i<MAX_TOQUES; i++)
         cur[i] = 0;
-      
-      
+
       printed_cur = false;
       stored_cur = false;
-      Serial.println("Please wait...");
+      Serial.print("Aguarde...");
       delay(1000);
-      Serial.println("ready to be unlocked");
+      Serial.println("Pronto");
     }
 
     if(sensorValue > threshold && (learned || rec)) 
@@ -111,101 +144,90 @@ void loop()
   } 
 }
 
+void update_leds()
+{
+  if(!on && (millis()-led_timer_1) > LED_OFF)
+  {
+    for(int i=0; i<mems && i<3; i++)
+    {
+      if (nots[i])
+        digitalWrite(LED1[i], HIGH);
+    }
+    on=true; 
+    led_timer_1=millis();
+  }
+
+  if(on && (millis()-led_timer_1) > LED_ON)
+  {
+    for(int i=0; i<mems && i<3; i++)
+    {
+        digitalWrite(LED1[i], LOW);
+    }
+    on=false; 
+    led_timer_1=millis();
+  }
+}
+
 void record_curr()
 {
-          for(int i=0; i<MAX_TOQUES; i++) 
-          { //loop through
-            if(cur[i] == 0) 
-            { //if nothing is stored there
-              cur[i] = diff; ///fix this for first time through???
-               Serial.println(diff);
-                           
-                stored_cur = true;
-                           
-              break;
-            }  
-          }
+  for(int i=0; i<MAX_TOQUES; i++) 
+  { //loop through
+    if(cur[i] == 0) 
+    { //if nothing is stored there
+      cur[i] = diff; ///fix this for first time through???
+       Serial.println(diff);
+                   
+        stored_cur = true;
+                   
+      break;
+    }  
+  }
 }
 
 void learn()
 {
-          for(int i=0; i<MAX_TOQUES; i++)
-          { //loop through mem
-            if(mem[i] == 0) 
-            { //if nothing is stored there
-              mem[i] = diff; ///fix this for first time through???
-              Serial.println(diff);
-              break;
-            }
-          }
-}
-
-void printArray(int ar[]) 
-{
-  Serial.println("\nPRINTING ARRAY[]");
-  
-  for(int i=0; i<MAX_TOQUES; i++) 
-    Serial.println(ar[i]);
-
-  Serial.println("\n");
+  for(int i=0; i<MAX_TOQUES; i++)
+  { //loop through mem
+    if(mem[mems][i] == 0) 
+    { //if nothing is stored there
+      mem[mems][i] = diff; ///fix this for first time through???
+      Serial.println(diff);
+      break;
+    }
+  }
 }
 
 void checkValid() 
 {
   double error;
-  Serial.println("CHECKING UNLOCK PATTERN"); //knock lock
-  for(int i=0; i<MAX_TOQUES; i++) 
+  bool certo=false;
+  Serial.println("A comparar"); //knock lock
+  for(int j=0; j<mems; j++)
   {
-    error = (double) (cur[i]-mem[i])/mem[i];
-    error = abs(error);
-    error = 100 * error;
-    Serial.print("error="); Serial.println(error);
-    Serial.print(cur[i]); Serial.print("\t"); Serial.print(mem[i]); Serial.print("\t");
-    Serial.print((double) error); Serial.println("%");
-    
-    if(error > ERRO_MAX || error < -ERRO_MAX ) 
-    {///.4 for now
-      Serial.print(cur[i]); Serial.print(" !~ "); Serial.println(mem[i]);
-      Serial.println("INCORRECT");
-      break;
-    }
-    if(i==MAX_TOQUES-1) 
+    for(int i=0; i<MAX_TOQUES; i++) 
     {
-      Serial.println("UNLOCKED!!!!!!!!!!!!!!");
-    }     
+      error = (double) (cur[i]-mem[j][i])/mem[j][i];
+      error = abs(error);
+      error = 100 * error;
+      
+      if(error > ERRO_MAX || error < -ERRO_MAX ) 
+      {///.4 for now
+        Serial.println("Sem correspondência");
+        break;
+      }
+      if(i==MAX_TOQUES-1) 
+      {
+        certo=true;
+      }     
+    }
+    if (certo)
+    {
+      Serial.print("Reconhecido padrão ");
+      Serial.println(j+1);
+      nots[j]=true;
+      break;       
+    }
   }
-}
-
-int resetArray() 
-{
-  int ar[MAX_TOQUES];
-  
-  for(int i=0; i<MAX_TOQUES; i++) 
-    ar[i] = 0;
-}
-
-boolean checkSize() 
-{
-  int mem_length=0;
-  int cur_length=0;
-  for(int i=0; i<10; i++) 
-  {
-    if(mem[i]==0)
-      break;
-    mem_length++;
-  }
-
-  for(int i=0; i<10; i++) 
-  {
-    if(cur[i]==0)
-      break;
-    cur_length++;
-  }
-
-  if(mem_length != cur_length || mem_length==0)
-    return false;
-    
-  return true;
 }
 
 int g(int zero, int thresh, int atual)
